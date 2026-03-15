@@ -14,7 +14,8 @@
 6. [Code Refactoring](#6-code-refactoring)
 7. [Deployment](#7-deployment)
 8. [Usage](#8-usage)
-9. [License](#9-license)
+9. [Security Fixes](#9-security-fixes)
+10. [License](#10-license)
 
 ## 1. Introduction
 
@@ -22,7 +23,7 @@ Welcome to the documentation for the TO-DOIT App, a simple and refactored projec
 
 ## 2. Project Overview
 
-The TO-DOIT App is a web-based application developed to help users manage their tasks by providing a user-friendly interface for adding, editing, and deleting tasks. The app also supports task filtering based on status (All, Pending, Completed) and incorporates a theme switcher for a personalized user experience.
+The TO-DOIT App is a web-based application developed to help users manage their tasks by providing a user-friendly interface for adding, editing, and deleting tasks. The app supports task filtering based on status (All, Pending, Completed) and priority level, task priority assignment (None, Low, Medium, High), and incorporates a theme switcher for a personalized user experience.
 
 ## 3. Getting Started
 
@@ -123,16 +124,19 @@ The project follows a modular and organized structure to enhance readability, ma
 1. **TodoItemFormatter:**
    - Responsible for formatting individual task items.
    - Implements the Strategy pattern to ensure consistent and uniform task formatting.
+   - Includes `formatPriority()` and `getPriorityBadgeClass()` methods for consistent priority display across the UI.
 
 2. **TodoManager:**
    - Manages the overall logic related to todos.
    - Responsible for creating, editing, deleting, and toggling the status of todo items.
+   - Supports priority-based filtering alongside status and search filtering.
    - Encapsulates the todos array, ensuring centralized control over the application's state.
 
 3. **UIManager:**
    - Manages the user interface components and interactions.
    - Handles event listeners for user actions such as adding, editing, and deleting todos.
    - Responsible for displaying todos in the HTML, handling user inputs, and showing alert messages.
+   - Manages the priority select input, priority filter dropdown, and priority badge rendering in the task table.
    - Ensures separation of concerns between UI-related activities and application logic.
 
 4. **ThemeSwitcher:**
@@ -149,11 +153,12 @@ The TO-DOIT App is deployed and accessible online. You can use the following lin
 1. **Adding a Task:**
    - Enter the task in the input field.
    - Optionally, set a due date using the date input.
+   - Optionally, select a priority level (None, Low, Medium, High) from the priority dropdown.
    - Press Enter or click the "+" button to add the task.
 
 2. **Editing a Task:**
    - Click the "Edit" button on a task.
-   - Modify the task details.
+   - Modify the task name, due date, and/or priority level.
    - Click the "Check" button to save changes.
 
 3. **Completing a Task:**
@@ -164,15 +169,34 @@ The TO-DOIT App is deployed and accessible online. You can use the following lin
 
 5. **Filtering Tasks:**
    - Use the "Filter" dropdown to filter tasks by status (All, Pending, Completed).
+   - Use the "Priority" dropdown to filter tasks by priority level (All, High, Medium, Low, None).
+   - Both filters work together — for example, you can view only Pending tasks with High priority.
 
-6. **Clearing All Tasks:**
+6. **Priority Levels:**
+   - Each task can be assigned one of four priority levels: None, Low, Medium, or High.
+   - Priority is shown as a colour-coded badge in the Priority column:
+     - **None** — grey
+     - **Low** — blue
+     - **Medium** — yellow
+     - **High** — red
+   - Priority is preserved when editing a task and persisted across page reloads.
+
+7. **Clearing All Tasks:**
    - Click the "Delete All" button to clear all tasks.
 
-7. **Theme Switching:**
+8. **Theme Switching:**
    - Use the palette icon in the top-right corner to open the theme switcher.
    - Select a theme from the available options.
 
 
-## 9. License
+## 9. Security Fixes
+
+The following security issues were identified and resolved during development:
+
+- **Removed malicious service worker (`sw.js`):** The file contained obfuscated malware that made unauthorized network requests to external domains. It has been deleted.
+- **Removed untrusted third-party script:** An ad/tracking script loaded from `fpyf8.com` was removed from `index.html`.
+- **Fixed XSS vulnerability in search highlighting:** User search input is now HTML-escaped before being inserted via `innerHTML`, preventing script injection. Regex special characters in search queries are also escaped to prevent broken or malicious patterns.
+
+## 10. License
 
 This project is licensed under the [MIT License](https://opensource.org/licenses/MIT) and was originally developed by [@abdellatif-laghjaj](https://github.com/abdellatif-laghjaj) with the contribution of [@takitajwar17](https://github.com/takitajwar17). 

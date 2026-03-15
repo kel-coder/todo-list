@@ -15,6 +15,21 @@ class TodoItemFormatter {
   formatTaskForDisplay(task) {
     return task.replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
+
+  formatPriority(priority) {
+    const levels = { 0: "None", 1: "Low", 2: "Medium", 3: "High" };
+    return levels[priority] !== undefined ? levels[priority] : "None";
+  }
+
+  getPriorityBadgeClass(priority) {
+    const classes = {
+      0: "badge-ghost",
+      1: "badge-info",
+      2: "badge-warning",
+      3: "badge-error",
+    };
+    return classes[priority] !== undefined ? classes[priority] : "badge-ghost";
+  }
 }
 
 // Class responsible for managing Todo items
@@ -70,7 +85,7 @@ class TodoManager {
     }
   }
 
-  addTodo(task, dueDate, parentId = null) {
+  addTodo(task, dueDate, priority = 0, parentId = null) {
     try {
       const newTodo = {
         id: this.getRandomId(),
@@ -80,7 +95,7 @@ class TodoManager {
         completed: false,
         status: "pending",
         subtasks: [],
-        priority: 0,
+        priority: parseInt(priority) || 0,
         parent: parentId,
         isExpanded: true,
         createdAt: new Date().toISOString(),
@@ -107,12 +122,15 @@ class TodoManager {
     }
   }
 
-  editTodo(id, updatedTask) {
+  editTodo(id, updatedTask, priority) {
     try {
       const todo = this.todos.find((t) => t.id === id);
       if (todo) {
         todo.task = updatedTask.trim();
         todo.originalTask = updatedTask.trim();
+        if (priority !== undefined) {
+          todo.priority = parseInt(priority) || 0;
+        }
         todo.updatedAt = new Date().toISOString();
         this.saveToLocalStorage();
         this.notify("todoUpdated", todo);
@@ -248,7 +266,7 @@ class TodoManager {
     }
   }
 
-  filterTodos(status, searchQuery = "") {
+  filterTodos(status, searchQuery = "", priorityFilter = "all") {
     try {
       let filtered;
 
@@ -264,6 +282,12 @@ class TodoManager {
           break;
         default:
           filtered = [];
+      }
+
+      // Apply priority filter
+      if (priorityFilter !== "all") {
+        const level = parseInt(priorityFilter);
+        filtered = filtered.filter((todo) => (todo.priority || 0) === level);
       }
 
       // Apply search filter
@@ -365,6 +389,7 @@ class UIManager {
     this.todoItemFormatter = todoItemFormatter;
     this.currentFilter = "all";
     this.currentSearchQuery = "";
+    this.currentPriorityFilter = "all";
     this.draggedElement = null;
     this.isEditing = false;
     this.editingId = null;
@@ -381,6 +406,7 @@ class UIManager {
   initializeElements() {
     this.taskInput = document.querySelector("input[type='text']");
     this.dateInput = document.querySelector(".schedule-date");
+    this.prioritySelect = document.querySelector(".priority-select");
     this.addBtn = document.querySelector(".add-task-button");
     this.todosListBody = document.querySelector(".todos-list-body");
     this.alertMessage = document.querySelector(".alert-message");
@@ -497,6 +523,17 @@ class UIManager {
       });
     });
 
+    // Priority filter event listeners
+    const priorityFilterButtons = document.querySelectorAll(
+      "[data-priority-filter]"
+    );
+    priorityFilterButtons.forEach((button) => {
+      button.addEventListener("click", (e) => {
+        e.preventDefault();
+        this.handlePriorityFilter(button.getAttribute("data-priority-filter"));
+      });
+    });
+
     // Setup drag and drop
     this.setupDragAndDrop();
   }
@@ -606,6 +643,7 @@ class UIManager {
   handleAddTodo() {
     const task = this.taskInput.value.trim();
     const dueDate = this.dateInput.value;
+    const priority = this.prioritySelect ? parseInt(this.prioritySelect.value) : 0;
     const parentId = this.taskInput.getAttribute("data-parent-id");
 
     if (task === "") {
@@ -616,12 +654,12 @@ class UIManager {
     try {
       if (this.isEditing && this.editingId) {
         // Update existing todo
-        this.todoManager.editTodo(this.editingId, task);
+        this.todoManager.editTodo(this.editingId, task, priority);
         this.showAlertMessage("Task updated successfully", "success");
         this.resetEditMode();
       } else {
         // Add new todo
-        const newTodo = this.todoManager.addTodo(task, dueDate, parentId);
+        const newTodo = this.todoManager.addTodo(task, dueDate, priority, parentId);
         const message = parentId
           ? "Subtask added successfully"
           : "Task added successfully";
@@ -638,6 +676,7 @@ class UIManager {
   clearInputs() {
     this.taskInput.value = "";
     this.dateInput.value = "";
+    if (this.prioritySelect) this.prioritySelect.value = "0";
     this.taskInput.removeAttribute("data-parent-id");
     this.taskInput.placeholder = "Add a todo . . .";
   }
@@ -740,7 +779,8 @@ class UIManager {
   refreshDisplay() {
     const todos = this.todoManager.filterTodos(
       this.currentFilter,
-      this.currentSearchQuery
+      this.currentSearchQuery,
+      this.currentPriorityFilter
     );
     this.displayTodos(todos);
     this.updateProgressDisplay();
@@ -755,7 +795,7 @@ class UIManager {
       const message = this.currentSearchQuery
         ? `No tasks found matching "${this.currentSearchQuery}"`
         : "No tasks found";
-      this.todosListBody.innerHTML = `<tr><td colspan="4" class="text-center py-8">${message}</td></tr>`;
+      this.todosListBody.innerHTML = `<tr><td colspan="5" class="text-center py-8">${message}</td></tr>`;
       return;
     }
 
@@ -826,6 +866,12 @@ class UIManager {
         </div>
       </td>
       <td>${this.todoItemFormatter.formatDueDate(todo.dueDate)}</td>
+      <td>
+        <div class="badge ${this.todoItemFormatter.getPriorityBadgeClass(todo.priority)} gap-1">
+          <i class="bx bx-flag bx-xs"></i>
+          ${this.todoItemFormatter.formatPriority(todo.priority)}
+        </div>
+      </td>
       <td>
         <div class="badge ${
           todo.completed ? "badge-success" : "badge-warning"
@@ -921,6 +967,7 @@ class UIManager {
     if (todo) {
       this.taskInput.value = todo.originalTask;
       this.dateInput.value = todo.dueDate !== "No due date" ? todo.dueDate : "";
+      if (this.prioritySelect) this.prioritySelect.value = todo.priority || 0;
       this.isEditing = true;
       this.editingId = id;
       this.addBtn.innerHTML = "<i class='bx bx-check bx-sm'></i>";
@@ -983,6 +1030,11 @@ class UIManager {
     if (activeButton) {
       activeButton.classList.add("active");
     }
+  }
+
+  handlePriorityFilter(level) {
+    this.currentPriorityFilter = level;
+    this.refreshDisplay();
   }
 
   updateProgressDisplay() {

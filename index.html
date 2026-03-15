@@ -106,6 +106,12 @@
             type="date"
             class="input input-bordered input-secondary w-full max-w-xs schedule-date"
           />
+          <select class="select select-bordered select-secondary priority-select">
+            <option value="0">-- Priority --</option>
+            <option value="1">Low</option>
+            <option value="2">Medium</option>
+            <option value="3">High</option>
+          </select>
           <button class="btn btn-secondary add-task-button">
             <i class="bx bx-plus bx-sm"></i>
           </button>
@@ -142,6 +148,24 @@
               <li><a data-filter="all">All Tasks</a></li>
               <li><a data-filter="pending">Pending</a></li>
               <li><a data-filter="completed">Completed</a></li>
+            </ul>
+          </div>
+
+          <!-- Priority Filter Dropdown -->
+          <div class="dropdown">
+            <label tabindex="0" class="btn btn-outline">
+              <i class="bx bx-flag mr-2"></i>
+              Priority
+            </label>
+            <ul
+              tabindex="0"
+              class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52"
+            >
+              <li><a data-priority-filter="all">All Priorities</a></li>
+              <li><a data-priority-filter="3">🔴 High</a></li>
+              <li><a data-priority-filter="2">🟡 Medium</a></li>
+              <li><a data-priority-filter="1">🔵 Low</a></li>
+              <li><a data-priority-filter="0">⚪ None</a></li>
             </ul>
           </div>
         </div>
@@ -196,7 +220,8 @@
             <tr>
               <th class="w-2/5">Task</th>
               <th class="w-1/5">Due Date</th>
-              <th class="w-1/5">Status</th>
+              <th class="w-1/6">Priority</th>
+              <th class="w-1/6">Status</th>
               <th class="w-1/5">Actions</th>
             </tr>
           </thead>
