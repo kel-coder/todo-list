@@ -570,6 +570,17 @@ class UIManager {
   }
 
   highlightSearchResults(query) {
+    const escapeHtml = (text) =>
+      text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+    const escapeRegex = (str) =>
+      str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
     const todos = this.todosListBody.querySelectorAll(".todo-item");
     todos.forEach((todoElement) => {
       const taskCell = todoElement.querySelector("td:first-child");
@@ -580,8 +591,10 @@ class UIManager {
           taskCell.setAttribute("data-original", originalText);
         }
 
-        const regex = new RegExp(`(${query})`, "gi");
-        const highlightedText = originalText.replace(
+        const safeText = escapeHtml(originalText);
+        const safeQuery = escapeRegex(escapeHtml(query));
+        const regex = new RegExp(`(${safeQuery})`, "gi");
+        const highlightedText = safeText.replace(
           regex,
           '<mark class="bg-yellow-200 text-black">$1</mark>'
         );
