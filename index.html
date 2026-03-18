@@ -107,6 +107,14 @@
             type="date"
             class="input input-bordered input-secondary w-full max-w-xs schedule-date"
           />
+          <select
+            class="select select-bordered select-secondary priority-select"
+            title="Set priority"
+          >
+            <option value="low">🟢 Low</option>
+            <option value="medium">🟠 Medium</option>
+            <option value="high">🔴 High</option>
+          </select>
           <button class="btn btn-secondary add-task-button">
             <i class="bx bx-plus bx-sm"></i>
           </button>
@@ -145,6 +153,28 @@
               <li><a data-filter="completed">Completed</a></li>
             </ul>
           </div>
+        </div>
+      </div>
+
+      <div class="priority-filter-bar mb-4 w-full">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="priority-filter-label">
+            <i class="bx bx-flag mr-1"></i>
+            Priority:
+          </span>
+          <button class="btn btn-xs priority-filter-btn active" data-priority="all">All</button>
+          <button class="btn btn-xs priority-filter-btn priority-btn-low" data-priority="low">
+            <i class="bx bx-down-arrow-circle mr-1"></i>
+            Low
+          </button>
+          <button class="btn btn-xs priority-filter-btn priority-btn-medium" data-priority="medium">
+            <i class="bx bx-minus-circle mr-1"></i>
+            Medium
+          </button>
+          <button class="btn btn-xs priority-filter-btn priority-btn-high" data-priority="high">
+            <i class="bx bx-up-arrow-circle mr-1"></i>
+            High
+          </button>
         </div>
       </div>
 
@@ -198,6 +228,7 @@
               <th class="w-2/5">Task</th>
               <th class="w-1/5">Due Date</th>
               <th class="w-1/5">Status</th>
+              <th class="w-1/5">Priority</th>
               <th class="w-1/5">Actions</th>
             </tr>
           </thead>
