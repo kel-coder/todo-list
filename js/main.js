@@ -30,6 +30,30 @@ class TodoItemFormatter {
     };
     return classes[priority] !== undefined ? classes[priority] : "badge-ghost";
   }
+
+  getOverdueInfo(dueDate, completed) {
+    if (completed || !dueDate || dueDate === "No due date") return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(dueDate + "T00:00:00");
+    const diffDays = Math.round((due - today) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return { type: "overdue", days: Math.abs(diffDays) };
+    if (diffDays === 0) return { type: "today" };
+    if (diffDays <= 3) return { type: "soon", days: diffDays };
+    return null;
+  }
+
+  formatDueDateWithIndicator(dueDate, completed) {
+    const dateText = this.formatDueDate(dueDate);
+    const info = this.getOverdueInfo(dueDate, completed);
+    if (!info) return `<span>${dateText}</span>`;
+    const chipMap = {
+      overdue: `<span class="status-chip overdue-chip"><i class="bx bx-time-five bx-xs"></i>${info.days === 1 ? "1d overdue" : `${info.days}d overdue`}</span>`,
+      today: `<span class="status-chip due-today-chip"><i class="bx bx-calendar-check bx-xs"></i>Due today</span>`,
+      soon: `<span class="status-chip due-soon-chip"><i class="bx bx-calendar bx-xs"></i>${info.days === 1 ? "Tomorrow" : `In ${info.days}d`}</span>`,
+    };
+    return `<div class="date-cell-wrapper"><span class="date-label">${dateText}</span>${chipMap[info.type]}</div>`;
+  }
 }
 
 // Class responsible for managing Todo items
@@ -828,10 +852,13 @@ class UIManager {
       this.todoItemFormatter.formatTask(todo.originalTask, false)
     );
 
+    const overdueInfo = this.todoItemFormatter.getOverdueInfo(todo.dueDate, todo.completed);
+    const overdueRowClass = overdueInfo ? `overdue-row-${overdueInfo.type}` : "";
+
     const row = document.createElement("tr");
     row.className = `todo-item ${todo.completed ? "opacity-60" : ""} ${
       indentLevel > 0 ? "subtask" : ""
-    }`;
+    } ${overdueRowClass}`;
     row.setAttribute("data-id", todo.id);
     row.draggable = indentLevel === 0; // Only parent todos are draggable
 
@@ -865,7 +892,7 @@ class UIManager {
           }
         </div>
       </td>
-      <td>${this.todoItemFormatter.formatDueDate(todo.dueDate)}</td>
+      <td>${this.todoItemFormatter.formatDueDateWithIndicator(todo.dueDate, todo.completed)}</td>
       <td>
         <div class="badge ${this.todoItemFormatter.getPriorityBadgeClass(todo.priority)} gap-1">
           <i class="bx bx-flag bx-xs"></i>

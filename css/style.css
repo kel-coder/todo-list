@@ -676,6 +676,76 @@ mark {
   }
 }
 
+/* ── Overdue Indicators ─────────────────────────────────────────────── */
+
+.date-cell-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.date-label {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+/* Base chip — pill shape, icon + label */
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.25px;
+  width: fit-content;
+  color: #fff;
+  transition: box-shadow 0.3s ease;
+}
+
+/* Overdue → rose → pink */
+.overdue-chip {
+  background: linear-gradient(135deg, #f43f5e 0%, #fb7185 100%);
+  box-shadow: 0 2px 10px rgba(244, 63, 94, 0.32);
+  animation: overdue-breathe 3s ease-in-out infinite;
+}
+
+@keyframes overdue-breathe {
+  0%, 100% { box-shadow: 0 2px 10px rgba(244, 63, 94, 0.32); }
+  50%       { box-shadow: 0 2px 16px rgba(244, 63, 94, 0.52); }
+}
+
+/* Due today → amber → orange */
+.due-today-chip {
+  background: linear-gradient(135deg, #f59e0b 0%, #fb923c 100%);
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.30);
+}
+
+/* Due soon → sky → cyan */
+.due-soon-chip {
+  background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%);
+  box-shadow: 0 2px 10px rgba(14, 165, 233, 0.28);
+}
+
+/* Row accent — subtle gradient wash + left border */
+.overdue-row-overdue {
+  background: linear-gradient(90deg, rgba(244, 63, 94, 0.06), transparent) !important;
+  border-left: 3px solid rgba(244, 63, 94, 0.50) !important;
+}
+
+.overdue-row-today {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.06), transparent) !important;
+  border-left: 3px solid rgba(245, 158, 11, 0.50) !important;
+}
+
+.overdue-row-soon {
+  background: linear-gradient(90deg, rgba(14, 165, 233, 0.05), transparent) !important;
+  border-left: 3px solid rgba(14, 165, 233, 0.38) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────────── */
+
 /* Reduce motion for users who prefer it */
 @media (prefers-reduced-motion: reduce) {
   *,
