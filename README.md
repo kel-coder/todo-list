@@ -15,7 +15,9 @@
 7. [Deployment](#7-deployment)
 8. [Usage](#8-usage)
 9. [Security Fixes](#9-security-fixes)
-10. [License](#10-license)
+10. [Bug Fixes](#10-bug-fixes)
+11. [New Features](#11-new-features)
+12. [License](#12-license)
 
 ## 1. Introduction
 
@@ -23,7 +25,7 @@ Welcome to the documentation for the TO-DOIT App, a simple and refactored projec
 
 ## 2. Project Overview
 
-The TO-DOIT App is a web-based application developed to help users manage their tasks by providing a user-friendly interface for adding, editing, and deleting tasks. The app supports task filtering based on status (All, Pending, Completed) and priority level, task priority assignment (None, Low, Medium, High), and incorporates a theme switcher for a personalized user experience.
+The TO-DOIT App is a web-based application developed to help users manage their tasks by providing a user-friendly interface for adding, editing, and deleting tasks. The app supports task filtering based on status (All, Pending, Completed) and priority level, task priority assignment (None, Low, Medium, High), subtask management, drag-and-drop reordering, overdue date indicators, smart browser notifications with encouraging reminders, and a theme switcher for a personalized user experience.
 
 ## 3. Getting Started
 
@@ -144,6 +146,13 @@ The project follows a modular and organized structure to enhance readability, ma
    - Implements the Singleton pattern to ensure a single instance responsible for theme switching.
    - Manages the application's theme by updating the HTML's data-theme attribute.
 
+5. **NotificationManager:**
+   - Manages all browser notification and in-app toast logic.
+   - Requests and tracks Web Notifications API permission.
+   - Checks pending tasks against today's date and fires encouraging, randomly-selected reminder messages for overdue, due-today, and due-tomorrow tasks.
+   - Deduplicates notifications via a localStorage log (pruned after 7 days) so each task fires at most once per day.
+   - Renders Duolingo-style in-app toast cards with animations and a progress-bar countdown when the tab is open.
+
 ## 7. Deployment
 
 The TO-DOIT App is deployed and accessible online. You can use the following link to access the application: [TO-DOIT](https://todotify.vercel.app/)
@@ -197,6 +206,65 @@ The following security issues were identified and resolved during development:
 - **Removed untrusted third-party script:** An ad/tracking script loaded from `fpyf8.com` was removed from `index.html`.
 - **Fixed XSS vulnerability in search highlighting:** User search input is now HTML-escaped before being inserted via `innerHTML`, preventing script injection. Regex special characters in search queries are also escaped to prevent broken or malicious patterns.
 
-## 10. License
+## 10. Bug Fixes
 
-This project is licensed under the [MIT License](https://opensource.org/licenses/MIT) and was originally developed by [@abdellatif-laghjaj](https://github.com/abdellatif-laghjaj) with the contribution of [@takitajwar17](https://github.com/takitajwar17). 
+The following bugs were identified and resolved:
+
+1. **Edit did not save due date changes:**
+   - When editing a task, changes made to the due date field were silently discarded.
+   - Fixed by adding a `dueDate` parameter to `TodoManager.editTodo()` and passing it from `UIManager.handleAddTodo()`.
+
+2. **Duplicate and broken Sort dropdown:**
+   - The toolbar contained a "Sort" dropdown that duplicated the status filter already present in the search bar section, and used `onclick` inline handlers with no `data-filter` attributes — making the active-state highlight permanently broken.
+   - Fixed by removing the redundant dropdown. The filter UI in the search bar section is the single source of truth.
+
+3. **Unescaped `data-original` attribute:**
+   - Task names containing `"`, `&`, or `>` characters could break the `data-original` HTML attribute used by the search-highlight system.
+   - Fixed by running `originalTask` through `formatTaskForDisplay()`, which now escapes `&`, `<`, `>`, and `"` (in the correct order) before injection into the attribute.
+
+---
+
+## 11. New Features
+
+### Browser Notifications & Smart Reminders
+
+The app uses the **Web Notifications API** to alert users about upcoming and overdue tasks, even when the browser tab is in the background.
+
+**Enabling notifications:**
+- Click the **bell icon 🔔** in the task toolbar.
+- Approve the browser permission prompt — the bell turns green when active.
+- If notifications are blocked, the bell shows an off state and guides the user to their browser settings.
+
+**Three notification types, each with 5 rotating encouraging messages:**
+
+| Type | Trigger | Behaviour |
+|---|---|---|
+| ⚠️ **Overdue** | Task is past its due date and not completed | Stays on screen until dismissed (`requireInteraction`), pushy & motivating |
+| 📅 **Due Today** | Task is due today and not completed | Stays on screen until dismissed, energetic & action-focused |
+| 🔔 **Due Tomorrow** | Task is due tomorrow and not completed | Auto-dismisses, gentle heads-up tone |
+
+Messages are randomly selected from a pool on every check so users never see the same nudge twice in a row.
+
+**In-app toast cards (Duolingo-style):**
+- A floating card slides in from the bottom-right whenever a notification fires while the tab is open.
+- Each card is colour-coded: red for overdue, amber/orange for today, indigo/violet for tomorrow.
+- A shrinking progress bar shows exactly how long until auto-dismiss.
+- Multiple toasts queue and display one after another.
+- Dismissible via the ✕ button or by clicking the card.
+
+**Smart deduplication:**
+- Each task fires at most once per day per type — no repeat spam.
+- The notification log is stored in `localStorage` and auto-pruned after 7 days.
+- The app re-checks every **30 minutes** in the background.
+
+---
+
+### Frosted Glass Footer Bar
+
+The copyright footer is now a full-width **frosted glass bar** pinned to the bottom of the viewport. It uses `backdrop-filter: blur` so it adapts beautifully to every DaisyUI theme without hardcoded colours.
+
+---
+
+## 12. License
+
+This project is licensed under the [MIT License](https://opensource.org/licenses/MIT) and was originally developed by [@abdellatif-laghjaj](https://github.com/abdellatif-laghjaj) with the contribution of [@takitajwar17](https://github.com/takitajwar17).

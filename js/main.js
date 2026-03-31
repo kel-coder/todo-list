@@ -13,7 +13,11 @@ class TodoItemFormatter {
   }
 
   formatTaskForDisplay(task) {
-    return task.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return task
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
 
   formatPriority(priority) {
@@ -146,7 +150,7 @@ class TodoManager {
     }
   }
 
-  editTodo(id, updatedTask, priority) {
+  editTodo(id, updatedTask, priority, dueDate) {
     try {
       const todo = this.todos.find((t) => t.id === id);
       if (todo) {
@@ -154,6 +158,9 @@ class TodoManager {
         todo.originalTask = updatedTask.trim();
         if (priority !== undefined) {
           todo.priority = parseInt(priority) || 0;
+        }
+        if (dueDate !== undefined) {
+          todo.dueDate = this.todoItemFormatter.formatDueDate(dueDate);
         }
         todo.updatedAt = new Date().toISOString();
         this.saveToLocalStorage();
@@ -678,7 +685,7 @@ class UIManager {
     try {
       if (this.isEditing && this.editingId) {
         // Update existing todo
-        this.todoManager.editTodo(this.editingId, task, priority);
+        this.todoManager.editTodo(this.editingId, task, priority, dueDate);
         this.showAlertMessage("Task updated successfully", "success");
         this.resetEditMode();
       } else {
@@ -882,7 +889,7 @@ class UIManager {
           }
           <span class="${
             todo.completed ? "line-through" : ""
-          }" data-original="${todo.originalTask}">
+          }" data-original="${this.todoItemFormatter.formatTaskForDisplay(todo.originalTask)}">
             ${taskDisplay}
           </span>
           ${
@@ -1125,6 +1132,293 @@ class UIManager {
   }
 }
 
+// ── Notification message pools ──────────────────────────────────────────────
+// Each entry is { title, body(taskName, daysLate?) }
+// Messages rotate randomly so users never see the same nudge twice in a row.
+const NOTIFICATION_MESSAGES = {
+  overdue: [
+    {
+      title: "⚡ The Comeback Starts NOW!",
+      body: (name, d) =>
+        `"${name}" is ${d === 1 ? "1 day" : `${d} days`} overdue — but every legend has a comeback story. Yours begins the moment you open that task. You've. Got. This. 💥`,
+    },
+    {
+      title: "🔥 Hey Baddie, Rise Up!",
+      body: (name, d) =>
+        `"${name}" has been waiting ${d === 1 ? "since yesterday" : `for ${d} days`}. One focused push and it's DONE. You didn't come this far to leave it here — let's go! 🚀`,
+    },
+    {
+      title: "😤 Unfinished Business Alert!",
+      body: (name, d) =>
+        `"${name}" is ${d === 1 ? "1 day" : `${d} days`} late. That task has your name on it and it's waiting. A little effort NOW = a massive win later. You're capable of SO much more! ✨`,
+    },
+    {
+      title: "💪 You're Closer Than You Think!",
+      body: (name, d) =>
+        `${d === 1 ? "Yesterday's" : `${d} days ago's`} task — "${name}" — still has your name on it. The hardest part is starting. Start NOW and watch yourself fly! 🏆`,
+    },
+    {
+      title: "🌟 One Task Standing Between You & a W!",
+      body: (name) =>
+        `"${name}" is overdue but NOT forgotten. Champions don't quit — they recalibrate. Take 5 minutes, make a move, feel unstoppable. Let's smash it! 🎯`,
+    },
+  ],
+  today: [
+    {
+      title: "☀️ Today Is Your Moment!",
+      body: (name) =>
+        `Hey, let's walk on "${name}" together today! Set a timer, lock in, and let's turn today's to-do into today's DONE. You've got the energy — use it! ✨`,
+    },
+    {
+      title: "🎯 Focus Mode: Activated!",
+      body: (name) =>
+        `"${name}" is due TODAY and you were made for this! Clear the noise, channel the vibe, and own it. Small steps, big results — let's gooo! 🔥`,
+    },
+    {
+      title: "💃 Today's the Move, Baddie!",
+      body: (name) =>
+        `"${name}" is on today's list and it's calling your name! Show up, do the thing, and treat yourself after. Victory lap incoming! 🏆`,
+    },
+    {
+      title: "🌈 You + This Task = Done Deal!",
+      body: (name) =>
+        `"${name}" is due today — and honestly? You've never missed before. Today is no different. One hour of focus can change everything. Start now! 💫`,
+    },
+    {
+      title: "✅ Today's Win Is Right Here!",
+      body: (name) =>
+        `Knock out "${name}" today and feel AMAZING tonight. Future you is already doing a happy dance. Present you just needs to BEGIN. Go get it! 🚀`,
+    },
+  ],
+  tomorrow: [
+    {
+      title: "🌙 Tomorrow Is Loading…",
+      body: (name) =>
+        `Heads up superstar — "${name}" drops tomorrow! A quick peek tonight = a stress-free W in the morning. Set yourself up for the win! 🌟`,
+    },
+    {
+      title: "🔔 Your Future Self Sent a Message!",
+      body: (name) =>
+        `"${name}" is due tomorrow and your future self says: "thank you for prepping tonight!" Small moves now = smooth sailing tomorrow. You've got this! 💪`,
+    },
+    {
+      title: "🎒 Pack Your Winning Energy!",
+      body: (name) =>
+        `Tomorrow's mission: "${name}". Get your head in the game tonight — lay out your plan, take one small step, and wake up ready to CRUSH IT! 🔥`,
+    },
+    {
+      title: "🌠 The Night Before the Victory!",
+      body: (name) =>
+        `"${name}" is coming up tomorrow — think of tonight as your pre-game ritual. Lock in, prep your vibe, and tomorrow will be YOUR moment! ✨`,
+    },
+    {
+      title: "👀 Tomorrow Belongs to the Prepared!",
+      body: (name) =>
+        `"${name}" is on deck for tomorrow! Take a moment tonight to plan your attack. The most successful people aren't lucky — they're READY. Be ready! 🏆`,
+    },
+  ],
+};
+
+// ── NotificationManager ──────────────────────────────────────────────────────
+class NotificationManager {
+  constructor(todoManager) {
+    this.todoManager = todoManager;
+    this.STORAGE_KEY = "notificationLog";
+    this.CHECK_INTERVAL_MS = 30 * 60 * 1000; // re-check every 30 minutes
+    this.notificationLog = this.loadLog();
+    this.intervalId = null;
+    this.toastQueue = [];      // in-app toast queue
+    this.toastActive = false;  // guard: one toast visible at a time
+  }
+
+  get isSupported() {
+    return "Notification" in window;
+  }
+
+  get permission() {
+    return this.isSupported ? Notification.permission : "unsupported";
+  }
+
+  // ── persistence ─────────────────────────────────────────────────────────
+
+  loadLog() {
+    try {
+      return JSON.parse(localStorage.getItem(this.STORAGE_KEY) || "{}");
+    } catch {
+      return {};
+    }
+  }
+
+  saveLog() {
+    // Prune entries older than 7 days to keep localStorage tidy
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 7);
+    const cutoffStr = cutoff.toISOString().split("T")[0];
+    for (const key in this.notificationLog) {
+      if (this.notificationLog[key] < cutoffStr) {
+        delete this.notificationLog[key];
+      }
+    }
+    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.notificationLog));
+  }
+
+  wasNotifiedToday(key) {
+    const today = new Date().toISOString().split("T")[0];
+    return this.notificationLog[key] === today;
+  }
+
+  markNotified(key) {
+    const today = new Date().toISOString().split("T")[0];
+    this.notificationLog[key] = today;
+    this.saveLog();
+  }
+
+  // ── permission ───────────────────────────────────────────────────────────
+
+  async requestPermission() {
+    if (!this.isSupported) return "unsupported";
+    if (this.permission !== "default") return this.permission;
+    return await Notification.requestPermission();
+  }
+
+  // ── message helpers ──────────────────────────────────────────────────────
+
+  pickMessage(type, taskName, daysLate = 0) {
+    const pool = NOTIFICATION_MESSAGES[type];
+    const template = pool[Math.floor(Math.random() * pool.length)];
+    return {
+      title: template.title,
+      body: template.body(taskName, daysLate),
+    };
+  }
+
+  // ── system (OS) notification ─────────────────────────────────────────────
+
+  sendSystemNotification(title, body, tag, requireInteraction = false) {
+    if (this.permission !== "granted") return;
+    const n = new Notification(title, {
+      body,
+      icon: "res/favicon.ico",
+      tag,
+      requireInteraction, // stays until dismissed — used for overdue & today
+    });
+    n.onclick = () => { window.focus(); n.close(); };
+  }
+
+  // ── in-app toast ─────────────────────────────────────────────────────────
+  // Shown when the tab is already open so the OS notification may be suppressed.
+
+  queueToast(type, title, body) {
+    this.toastQueue.push({ type, title, body });
+    if (!this.toastActive) this.showNextToast();
+  }
+
+  showNextToast() {
+    if (this.toastQueue.length === 0) { this.toastActive = false; return; }
+    this.toastActive = true;
+
+    const { type, title, body } = this.toastQueue.shift();
+
+    const emojiMap = { overdue: "😤", today: "🔥", tomorrow: "🌙" };
+    const toast = document.createElement("div");
+    toast.className = `notif-toast notif-toast-${type}`;
+    toast.innerHTML = `
+      <div class="notif-toast-emoji">${emojiMap[type]}</div>
+      <div class="notif-toast-content">
+        <div class="notif-toast-title">${title}</div>
+        <div class="notif-toast-body">${body}</div>
+      </div>
+      <button class="notif-toast-close" aria-label="Dismiss">✕</button>
+    `;
+
+    document.body.appendChild(toast);
+
+    const dismiss = () => {
+      toast.classList.add("notif-toast-out");
+      toast.addEventListener("animationend", () => {
+        toast.remove();
+        setTimeout(() => this.showNextToast(), 400);
+      }, { once: true });
+    };
+
+    toast.querySelector(".notif-toast-close").addEventListener("click", (e) => {
+      e.stopPropagation();
+      dismiss();
+    });
+    toast.addEventListener("click", () => { window.focus(); dismiss(); });
+
+    // Auto-dismiss: overdue = 10 s, today = 8 s, tomorrow = 6 s
+    const ttl = { overdue: 10000, today: 8000, tomorrow: 6000 }[type];
+    // Drive the CSS progress-bar animation duration to match the auto-dismiss time
+    toast.style.setProperty("--ttl", `${ttl / 1000}s`);
+    setTimeout(dismiss, ttl);
+  }
+
+  // ── core check ───────────────────────────────────────────────────────────
+
+  checkAndNotify(showToasts = false) {
+    if (this.permission !== "granted") return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const pending = this.todoManager.todos.filter(
+      (t) => !t.completed && t.dueDate && t.dueDate !== "No due date"
+    );
+
+    pending.forEach((todo) => {
+      const due = new Date(todo.dueDate + "T00:00:00");
+      const diffDays = Math.round((due - today) / (1000 * 60 * 60 * 24));
+      const name =
+        todo.originalTask.length > 55
+          ? todo.originalTask.slice(0, 55) + "…"
+          : todo.originalTask;
+
+      if (diffDays < 0) {
+        const key = `${todo.id}-overdue`;
+        if (!this.wasNotifiedToday(key)) {
+          const d = Math.abs(diffDays);
+          const msg = this.pickMessage("overdue", name, d);
+          this.sendSystemNotification(msg.title, msg.body, key, true);
+          if (showToasts) this.queueToast("overdue", msg.title, msg.body);
+          this.markNotified(key);
+        }
+      } else if (diffDays === 0) {
+        const key = `${todo.id}-today`;
+        if (!this.wasNotifiedToday(key)) {
+          const msg = this.pickMessage("today", name);
+          this.sendSystemNotification(msg.title, msg.body, key, true);
+          if (showToasts) this.queueToast("today", msg.title, msg.body);
+          this.markNotified(key);
+        }
+      } else if (diffDays === 1) {
+        const key = `${todo.id}-tomorrow`;
+        if (!this.wasNotifiedToday(key)) {
+          const msg = this.pickMessage("tomorrow", name);
+          this.sendSystemNotification(msg.title, msg.body, key, false);
+          if (showToasts) this.queueToast("tomorrow", msg.title, msg.body);
+          this.markNotified(key);
+        }
+      }
+    });
+  }
+
+  // ── lifecycle ────────────────────────────────────────────────────────────
+
+  start() {
+    // Page-load check shows in-app toasts too (tab is open)
+    this.checkAndNotify(true);
+    this.intervalId = setInterval(() => this.checkAndNotify(), this.CHECK_INTERVAL_MS);
+  }
+
+  stop() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+  }
+}
+
 // Main TodoApp class that orchestrates all components
 class TodoApp {
   constructor() {
@@ -1132,6 +1426,7 @@ class TodoApp {
     this.todoManager = new TodoManager(this.todoItemFormatter);
     this.uiManager = new UIManager(this.todoManager, this.todoItemFormatter);
     this.themeSwitcher = this.initializeThemeSwitcher();
+    this.notificationManager = new NotificationManager(this.todoManager);
 
     this.initialize();
   }
@@ -1146,10 +1441,69 @@ class TodoApp {
     // Setup keyboard shortcuts
     this.setupGlobalKeyboardShortcuts();
 
+    // Setup notifications
+    this.setupNotificationButton();
+    this.notificationManager.start();
+
+    // Re-check whenever a task is added or updated
+    this.todoManager.subscribe({
+      todoAdded: () => this.notificationManager.checkAndNotify(),
+      todoUpdated: () => this.notificationManager.checkAndNotify(),
+    });
+
     // Initialize with saved state
     this.loadApplicationState();
 
     console.log("TodoApp initialized successfully");
+  }
+
+  setupNotificationButton() {
+    const btn = document.getElementById("notification-btn");
+    if (!btn) return;
+
+    this.updateNotificationButton(btn);
+
+    btn.addEventListener("click", async () => {
+      if (!this.notificationManager.isSupported) {
+        this.uiManager.showAlertMessage(
+          "Notifications are not supported in this browser",
+          "warning"
+        );
+        return;
+      }
+      if (this.notificationManager.permission === "denied") {
+        this.uiManager.showAlertMessage(
+          "Notifications are blocked — enable them in your browser settings",
+          "error"
+        );
+        return;
+      }
+      const result = await this.notificationManager.requestPermission();
+      this.updateNotificationButton(btn);
+      if (result === "granted") {
+        this.uiManager.showAlertMessage("Notifications enabled!", "success");
+        this.notificationManager.checkAndNotify();
+      }
+    });
+  }
+
+  updateNotificationButton(btn) {
+    const icon = btn.querySelector("i");
+    const status = this.notificationManager.permission;
+    btn.classList.remove("btn-ghost", "btn-success", "btn-outline", "btn-error");
+    if (status === "granted") {
+      icon.className = "bx bx-bell";
+      btn.classList.add("btn-success", "btn-outline");
+      btn.title = "Notifications enabled";
+    } else if (status === "denied") {
+      icon.className = "bx bx-bell-off";
+      btn.classList.add("btn-ghost");
+      btn.title = "Notifications blocked — enable in browser settings";
+    } else {
+      icon.className = "bx bx-bell";
+      btn.classList.add("btn-ghost");
+      btn.title = "Enable notifications";
+    }
   }
 
   initializeThemeSwitcher() {

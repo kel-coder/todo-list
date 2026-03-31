@@ -173,33 +173,13 @@
 
       <div class="todos-filter">
         <div class="flex gap-2">
-          <div class="dropdown">
-            <label tabindex="0" class="btn btn-ghost btn-sm">
-              <i class="bx bx-sort mr-1"></i>
-              Sort
-            </label>
-            <ul
-              tabindex="0"
-              class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52"
-            >
-              <li>
-                <a onclick="todoApp?.uiManager?.handleFilterTodos('all')"
-                  >All</a
-                >
-              </li>
-              <li>
-                <a onclick="todoApp?.uiManager?.handleFilterTodos('pending')"
-                  >Pending</a
-                >
-              </li>
-              <li>
-                <a onclick="todoApp?.uiManager?.handleFilterTodos('completed')"
-                  >Completed</a
-                >
-              </li>
-            </ul>
-          </div>
-
+          <button
+            id="notification-btn"
+            class="btn btn-ghost btn-sm"
+            title="Enable Notifications"
+          >
+            <i class="bx bx-bell"></i>
+          </button>
           <button
             class="btn btn-ghost btn-sm help-btn"
             title="Keyboard Shortcuts"
